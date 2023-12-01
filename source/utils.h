@@ -259,4 +259,6 @@ type *name = (type*)(((u32)(_al__##name)) + ((alignment) - (( \
 
 #define BIT(n) (1<<n)
 
+#define ARR_SIZE(x) (sizeof(x) / sizeof(x[0]))
+
 #endif

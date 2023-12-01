@@ -31,6 +31,7 @@
 #include "elfldr_patch.h"
 #include "prsh.h"
 #include "ff.h"
+#include "ios.h"
 
 #include "rednand.h"
 
@@ -610,26 +611,36 @@ u32 ancast_patch_load(const char* fn_ios, const char* fn_patch, const char* plug
         printf("ancast: IOS image might not be 5.5?\n");
         //return 0;
     }
-    
+
     // find elfldr's jumpout addr and patch it
     u32 hook_base = 0;
+    u32 ios_base = 0;
     for(u32 i = 0; i < 0x1000; i += 4)
     {
         if(*(u32*)(vector + i) == 0xFFFF0000)
         {
             hook_base = vector + i;
-            break;
+            if (ios_base) break;
+        }
+        if (*(u32*)(vector + i) == 0x7F454C46)
+        {
+            ios_base = vector + i;
+            if (hook_base) break;
         }
     }
-    if(hook_base == 0)
+    if(hook_base == 0 || ios_base == 0)
     {
-        printf("ancast: failed to find elfloader jumpout magic!\n");
+        printf("ancast: failed to find elfloader jumpout and ios elf!\n");
         return 0;
     }
 
     *(u32*)hook_base = ALL_PURPOSE_TMP_BUF;
     // copy code out
     memcpy((void*)ALL_PURPOSE_TMP_BUF, elfldr_patch, elfldr_patch_len);
+
+    // Load any full IOS module replacements
+    int ret = ios_modules_load(plugins_fpath, ios_base);
+    if (ret < 0) return 0;
 
     ancast_plugins_load(plugins_fpath);
     
